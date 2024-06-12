@@ -9,6 +9,8 @@ const {
   getUserProfile,
   deleteUser,
   updateUserProfile,
+  unfollowUser,
+  followUser,
 } = require("../controllers/user.controller");
 
 router.get("/", getUserProfile);
@@ -21,4 +23,7 @@ router
   .patch(protectRoute, updateUserProfile)
   .delete(protectRoute, deleteUser);
 
+router.route("/follow/:id").post(protectRoute, followUser);
+
+router.route("/unfollow/:id").post(protectRoute, unfollowUser);
 module.exports = router;

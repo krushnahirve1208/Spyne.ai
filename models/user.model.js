@@ -33,7 +33,6 @@ const userSchema = new mongoose.Schema(
       minlength: 8,
       select: false,
     },
-
     passwordConfirm: {
       type: String,
       required: [true, "Please confirm your password"],
@@ -45,6 +44,18 @@ const userSchema = new mongoose.Schema(
         message: "Passwords are not the same!",
       },
     },
+    followers: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "User",
+      },
+    ],
+    following: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
