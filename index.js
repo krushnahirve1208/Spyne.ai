@@ -1,8 +1,9 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
-const connectDB=require('./config/db.config')
-require('dotenv').config();
+const express = require("express");
+const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const connectDB = require("./config/db.config");
+require("dotenv").config();
 
 const app = express();
 
@@ -10,17 +11,13 @@ connectDB();
 
 // Middleware
 app.use(bodyParser.json());
+app.use(cookieParser());
 
 // Routes
-const userRoutes = require('./routes/user.route');
-const postRoutes = require('./routes/post.route');
-app.use('/users', userRoutes);
-app.use('/posts', postRoutes);
-
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const userRoutes = require("./routes/user.route");
+const postRoutes = require("./routes/post.route");
+app.use("/api/v1/users", userRoutes);
+app.use("api/v1/posts", postRoutes);
 
 // Server
 const PORT = process.env.PORT || 3000;

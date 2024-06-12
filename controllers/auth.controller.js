@@ -33,11 +33,13 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 const registerUser = asyncHandler(async (req, res, next) => {
+  console.log(req.body);
   const newUser = await User.create({
-    name: req.body.name,
+    username: req.body.username,
     mobileNo: req.body.mobileNo,
     email: req.body.email,
     password: req.body.password,
+    passwordConfirm: req.body.passwordConfirm,
   });
   createSendToken(newUser, 201, res);
 });
@@ -64,13 +66,8 @@ const loginUser = asyncHandler(async (req, res) => {
 const protectRoute = asyncHandler(async (req, res, next) => {
   // 1) Getting token and check of it's there
   let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
-  }
 
+  token = req.cookies.jwt;
   if (!token) {
     return next(
       new AppError("You are not logged in! Please log in to get access.", 401)
@@ -88,13 +85,6 @@ const protectRoute = asyncHandler(async (req, res, next) => {
         "The user belonging to this token does no longer exist.",
         401
       )
-    );
-  }
-
-  // 4) Check if user changed password after the token was issued
-  if (currentUser.changedPasswordAfter(decoded.iat)) {
-    return next(
-      new AppError("User recently changed password! Please log in again.", 401)
     );
   }
 
