@@ -17,10 +17,10 @@ const PostController = {
   create: async (req, res) => {
     try {
       const post = new Post({
-        userId: req.body.userId,
+        userId: req.user._id,
         text: req.body.text,
-        image: req.body.image,
-        hashtags: req.body.hashtags,
+        image: req.file.path,
+        hashtags: req.body.hashtags.split(","),
       });
 
       await post.save();
@@ -88,6 +88,29 @@ const PostController = {
       });
       await post.save();
       res.status(200).json({ message: "Comment added successfully" });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  likeComment: async (req, res) => {
+    try {
+      const post = await Post.findById(req.params.postId);
+      if (!post) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+
+      const comment = post.comments.id(req.params.commentId);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+
+      if (!comment.likes.includes(req.body.userId)) {
+        comment.likes.push(req.body.userId);
+        await post.save();
+      }
+
+      res.status(200).json({ message: "Comment liked successfully" });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

@@ -17,7 +17,7 @@ app.use(cookieParser());
 const userRoutes = require("./routes/user.route");
 const postRoutes = require("./routes/post.route");
 app.use("/api/v1/users", userRoutes);
-app.use("api/v1/posts", postRoutes);
+app.use("/api/v1/posts", postRoutes);
 
 // Server
 const PORT = process.env.PORT || 3000;

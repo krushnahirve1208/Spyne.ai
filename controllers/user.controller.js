@@ -1,6 +1,17 @@
 const User = require("../models/user.model");
 const asyncHandler = require("express-async-handler");
 const APIFeatures = require("../utils/apiFeatures");
+const AppError = require("../utils/appError");
+
+const filterObj = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach((key) => {
+    if (allowedFields.includes(key)) {
+      newObj[key] = obj[key];
+    }
+  });
+  return newObj;
+};
 
 const getUsers = asyncHandler(async (req, res) => {
   const features = new APIFeatures(User.find(), req.query)
@@ -18,9 +29,33 @@ const getUsers = asyncHandler(async (req, res) => {
   });
 });
 
-const updateUserProfile = asyncHandler(async (req, res) => {
-  await User.findByIdAndUpdate(req.params.userId, req.body);
-  res.status(200).json({ message: "User updated successfully" });
+const updateUserProfile = asyncHandler(async (req, res, next) => {
+  const userId = req.params.userId;
+  // 1) Create error if user POSTs password data
+  if (req.body.password || req.body.passwordConfirm) {
+    return next(
+      new AppError(
+        "This route is not for password updates. Please use /updateMyPassword.",
+        400
+      )
+    );
+  }
+
+  // 2) Filtered out unwanted fields names that are not allowed to be updated
+  const filteredBody = filterObj(req.body, "username", "email", "mobileNo");
+
+  // 3) Update user document
+  const updatedUser = await User.findByIdAndUpdate(userId, filteredBody, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: updatedUser,
+    },
+  });
 });
 
 const getUserById = async (req, res) => {
