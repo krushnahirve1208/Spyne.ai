@@ -4,6 +4,7 @@ const {
   registerUser,
   loginUser,
   protectRoute,
+  logoutUser,
 } = require("../controllers/auth.controller");
 const {
   getUserProfile,
@@ -26,4 +27,6 @@ router
 router.route("/follow/:id").post(protectRoute, followUser);
 
 router.route("/unfollow/:id").post(protectRoute, unfollowUser);
+
+router.post("/logout", protectRoute, logoutUser);
 module.exports = router;

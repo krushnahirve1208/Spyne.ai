@@ -63,6 +63,14 @@ const loginUser = asyncHandler(async (req, res) => {
   createSendToken(user, 200, res);
 });
 
+const logoutUser = (req, res) => {
+  res.cookie("jwt", "loggedout", {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+  });
+  res.status(200).json({ status: "success" });
+};
+
 const protectRoute = asyncHandler(async (req, res, next) => {
   // 1) Getting token and check of it's there
   let token;
@@ -96,5 +104,6 @@ const protectRoute = asyncHandler(async (req, res, next) => {
 module.exports = {
   registerUser,
   loginUser,
+  logoutUser,
   protectRoute,
 };

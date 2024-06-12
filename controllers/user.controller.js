@@ -22,6 +22,10 @@ const followUser = asyncHandler(async (req, res) => {
   const userToFollow = await User.findById(req.params.id);
   const currentUser = await User.findById(req.user.id);
 
+  if (req.params.id === req.user.id) {
+    return res.status(400).json({ message: "You cannot follow yourself" });
+  }
+
   if (!userToFollow) {
     return res.status(404).json({ message: "User not found" });
   }
@@ -41,11 +45,12 @@ const followUser = asyncHandler(async (req, res) => {
 
   res.status(200).json({ message: "User followed successfully" });
 });
+
 const unfollowUser = asyncHandler(async (req, res) => {
   const userToUnfollow = await User.findById(req.params.id);
   const currentUser = await User.findById(req.user.id);
 
-  if (!userToUnfollow || !currentUser) {
+  if (!userToUnfollow) {
     return res.status(404).json({ message: "User not found" });
   }
 
