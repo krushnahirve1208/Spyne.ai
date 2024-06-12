@@ -1,9 +1,12 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const connectDB=require('./config/db.config')
 require('dotenv').config();
 
 const app = express();
+
+connectDB();
 
 // Middleware
 app.use(bodyParser.json());
