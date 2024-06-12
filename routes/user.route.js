@@ -1,10 +1,14 @@
 const express = require("express");
+
 const router = express.Router();
 const {
   registerUser,
   loginUser,
   protectRoute,
   logoutUser,
+  forgotPassword,
+  resetPassword,
+  updatePassword,
 } = require("../controllers/auth.controller");
 const {
   getUserById,
@@ -20,6 +24,10 @@ router.get("/", getUsers);
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/logout", protectRoute, logoutUser);
+
+router.post("/forgotPassword", forgotPassword);
+router.patch("/resetPassword/:token", resetPassword);
+router.patch("/updateMyPassword", protectRoute, updatePassword);
 
 router
   .route("/:userId")

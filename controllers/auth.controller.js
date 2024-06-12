@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const asyncHandler = require("express-async-handler");
@@ -98,18 +99,18 @@ const protectRoute = asyncHandler(async (req, res, next) => {
   }
 
   // 4) Check if user changed password after the token was issued
-  // if (currentUser.changedPasswordAfter(decoded.iat)) {
-  //   return next(
-  //     new AppError("User recently changed password! Please log in again.", 401)
-  //   );
-  // }
+  if (currentUser.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError("User recently changed password! Please log in again.", 401)
+    );
+  }
 
   // GRANT ACCESS TO PROTECTED ROUTE
   req.user = currentUser;
   next();
 });
 
-const forgotPassword = catchAsync(async (req, res, next) => {
+const forgotPassword = asyncHandler(async (req, res, next) => {
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
@@ -150,7 +151,7 @@ const forgotPassword = catchAsync(async (req, res, next) => {
   }
 });
 
-const resetPassword = catchAsync(async (req, res, next) => {
+const resetPassword = asyncHandler(async (req, res, next) => {
   // 1) Get user based on the token
   const hashedToken = crypto
     .createHash("sha256")
@@ -177,7 +178,7 @@ const resetPassword = catchAsync(async (req, res, next) => {
   createSendToken(user, 200, res);
 });
 
-const updatePassword = catchAsync(async (req, res, next) => {
+const updatePassword = asyncHandler(async (req, res, next) => {
   // 1) Get user from collection
   const user = await User.findById(req.user.id).select("+password");
 
@@ -201,4 +202,7 @@ module.exports = {
   loginUser,
   logoutUser,
   protectRoute,
+  forgotPassword,
+  resetPassword,
+  updatePassword,
 };
