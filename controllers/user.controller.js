@@ -1,87 +1,67 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
+const asyncHandler = require("express-async-handler");
 
-const getUserProfile = async (req, res) => {
-  try {
-    const users = await User.find({ name: req.params.name });
-    res.status(200).json({ users: users });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+const getUserProfile = asyncHandler(async (req, res) => {
+  const users = await User.find({ name: req.params.name });
+  res.status(200).json({ users: users });
+});
+
+const updateUserProfile = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(req.params.userId, req.body);
+  res.status(200).json({ message: "User updated successfully" });
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+  await User.findByIdAndDelete(req.params.userId);
+  res.status(200).json({ message: "User deleted successfully" });
+});
+
+const followUser = asyncHandler(async (req, res) => {
+  const userToFollow = await User.findById(req.params.id);
+  const currentUser = await User.findById(req.user.id);
+
+  if (!userToFollow) {
+    return res.status(404).json({ message: "User not found" });
   }
-};
 
-const updateUserProfile = async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.params.userId, req.body);
-    res.status(200).json({ message: "User updated successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (currentUser.following.includes(userToFollow._id)) {
+    return res
+      .status(400)
+      .json({ message: "You are already following this user" });
   }
-};
 
-const deleteUser = async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.userId);
-    res.status(200).json({ message: "User deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  currentUser.following.push(userToFollow._id);
+  userToFollow.followers.push(currentUser._id);
+
+  // Update the documents without running validators
+  await User.updateOne({ _id: currentUser._id }, currentUser);
+  await User.updateOne({ _id: userToFollow._id }, userToFollow);
+
+  res.status(200).json({ message: "User followed successfully" });
+});
+const unfollowUser = asyncHandler(async (req, res) => {
+  const userToUnfollow = await User.findById(req.params.id);
+  const currentUser = await User.findById(req.user.id);
+
+  if (!userToUnfollow || !currentUser) {
+    return res.status(404).json({ message: "User not found" });
   }
-};
 
-const followUser = async (req, res) => {
-  try {
-    const userToFollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.id);
-
-    if (!userToFollow || !currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    if (currentUser.following.includes(userToFollow._id)) {
-      return res
-        .status(400)
-        .json({ message: "You are already following this user" });
-    }
-
-    currentUser.following.push(userToFollow._id);
-    userToFollow.followers.push(currentUser._id);
-
-    await currentUser.save();
-    await userToFollow.save();
-
-    res.status(200).json({ message: "User followed successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  if (!currentUser.following.includes(userToUnfollow._id)) {
+    return res.status(400).json({ message: "You are not following this user" });
   }
-};
 
-const unfollowUser = async (req, res) => {
-  try {
-    const userToUnfollow = await User.findById(req.params.id);
-    const currentUser = await User.findById(req.user.id);
+  currentUser.following.pull(userToUnfollow._id);
+  userToUnfollow.followers.pull(currentUser._id);
 
-    if (!userToUnfollow || !currentUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+  // Update the documents without running validators
+  await User.updateOne({ _id: currentUser._id }, currentUser);
+  await User.updateOne({ _id: userToUnfollow._id }, userToUnfollow);
 
-    if (!currentUser.following.includes(userToUnfollow._id)) {
-      return res
-        .status(400)
-        .json({ message: "You are not following this user" });
-    }
-
-    currentUser.following.pull(userToUnfollow._id);
-    userToUnfollow.followers.pull(currentUser._id);
-
-    await currentUser.save();
-    await userToUnfollow.save();
-
-    res.status(200).json({ message: "User unfollowed successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+  res.status(200).json({ message: "User unfollowed successfully" });
+});
 
 module.exports = {
   deleteUser,

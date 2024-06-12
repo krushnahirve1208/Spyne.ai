@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const asyncHandler = require("express-async-handler");
 const AppError = require("./../utils/appError");
+const { promisify } = require("util");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -33,7 +34,6 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 const registerUser = asyncHandler(async (req, res, next) => {
-  console.log(req.body);
   const newUser = await User.create({
     username: req.body.username,
     mobileNo: req.body.mobileNo,
