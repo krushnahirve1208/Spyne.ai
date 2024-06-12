@@ -7,26 +7,28 @@ const {
   logoutUser,
 } = require("../controllers/auth.controller");
 const {
-  getUserProfile,
+  getUserById,
   deleteUser,
   updateUserProfile,
   unfollowUser,
   followUser,
+  getUsers,
 } = require("../controllers/user.controller");
 
-router.get("/", getUserProfile);
+router.get("/", getUsers);
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/logout", protectRoute, logoutUser);
 
 router
   .route("/:userId")
   .patch(protectRoute, updateUserProfile)
-  .delete(protectRoute, deleteUser);
+  .delete(protectRoute, deleteUser)
+  .get(getUserById);
 
 router.route("/follow/:id").post(protectRoute, followUser);
 
 router.route("/unfollow/:id").post(protectRoute, unfollowUser);
 
-router.post("/logout", protectRoute, logoutUser);
 module.exports = router;

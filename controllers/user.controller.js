@@ -1,17 +1,52 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 const asyncHandler = require("express-async-handler");
+const APIFeatures = require("../utils/apiFeatures");
 
-const getUserProfile = asyncHandler(async (req, res) => {
-  const users = await User.find({ name: req.params.name });
-  res.status(200).json({ users: users });
+const getUsers = asyncHandler(async (req, res) => {
+  const features = new APIFeatures(User.find(), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+  const users = await features.query;
+  res.status(200).json({
+    status: "success",
+    results: users.length,
+    data: {
+      users,
+    },
+  });
 });
 
 const updateUserProfile = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.params.userId, req.body);
   res.status(200).json({ message: "User updated successfully" });
 });
+
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        status: "fail",
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        user,
+      },
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: "fail",
+      message: error.message,
+    });
+  }
+};
 
 const deleteUser = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(req.params.userId);
@@ -71,7 +106,8 @@ const unfollowUser = asyncHandler(async (req, res) => {
 module.exports = {
   deleteUser,
   updateUserProfile,
-  getUserProfile,
+  getUsers,
   unfollowUser,
   followUser,
+  getUserById,
 };

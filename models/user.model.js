@@ -1,6 +1,9 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
+const crypto = require("crypto");
+const { PhoneNumberUtil, PhoneNumberFormat } = require("google-libphonenumber");
+const phoneUtil = PhoneNumberUtil.getInstance();
 
 const userSchema = new mongoose.Schema(
   {
@@ -11,13 +14,18 @@ const userSchema = new mongoose.Schema(
     mobileNo: {
       type: String,
       required: [true, "Please tell us your mobile no."],
+      unique: true,
       validate: {
         validator: function (v) {
-          return validator.isMobilePhone(v, "any", { strictMode: false });
+          try {
+            const number = phoneUtil.parse(v);
+            return phoneUtil.isValidNumber(number);
+          } catch (error) {
+            return false;
+          }
         },
-        message: (props) => `${props.value} is not a valid mobile No!`,
+        message: (props) => `${props.value} is not a valid mobile number!`,
       },
-      unique: true,
     },
     email: {
       type: String,
@@ -56,6 +64,14 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    passwordChangedAt: Date,
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+    active: {
+      type: Boolean,
+      default: true,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -80,6 +96,48 @@ userSchema.pre("save", async function (next) {
 
   next();
 });
+
+userSchema.pre("save", function (next) {
+  if (!this.isModified("password") || this.isNew) return next();
+
+  this.passwordChangedAt = Date.now() - 1000;
+  next();
+});
+
+userSchema.pre(/^find/, function (next) {
+  // this points to the current query
+  this.find({ active: { $ne: false } });
+  next();
+});
+
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+
+    return JWTTimestamp < changedTimestamp;
+  }
+
+  // False means NOT changed
+  return false;
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  console.log({ resetToken }, this.passwordResetToken);
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
+};
 
 const User = mongoose.model("User", userSchema);
 
