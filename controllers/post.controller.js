@@ -1,4 +1,5 @@
 const Post = require("../models/post.model");
+const fs = require("fs");
 
 const parseHashtags = (query) => {
   let hashtags = query.hashtags;
@@ -44,7 +45,27 @@ const PostController = {
 
   update: async (req, res) => {
     try {
-      await Post.findByIdAndUpdate(req.params.postId, req.body);
+      const updateData = req.body;
+
+      // If a new file is uploaded, add the file path to updateData
+      if (req.file) {
+        updateData.image = req.file.path;
+
+        // Find the post to get the current image path
+        const post = await Post.findById(req.params.postId);
+        console.log(post);
+        if (post && post.image) {
+          // Delete the old image from the server
+          const oldImagePath = `./${post.image}`;
+          fs.unlink(oldImagePath, (unlinkErr) => {
+            if (unlinkErr) {
+              console.error(`Failed to delete old image: ${unlinkErr.message}`);
+            }
+          });
+        }
+      }
+
+      await Post.findByIdAndUpdate(req.params.postId, updateData);
       res.status(200).json({ message: "Post updated successfully" });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -53,7 +74,25 @@ const PostController = {
 
   delete: async (req, res) => {
     try {
+      // Find the post by ID to get the image filename
+      const post = await Post.findById(req.params.postId);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+
+      // Delete the post from the database
       await Post.findByIdAndDelete(req.params.postId);
+
+      // If the post has an image, delete the image file from the server
+      if (post.image) {
+        const imagePath = `./${post.image}`;
+        fs.unlink(imagePath, (err) => {
+          if (err) {
+            console.error(`Failed to delete image: ${err.message}`);
+          }
+        });
+      }
+
       res.status(200).json({ message: "Post deleted successfully" });
     } catch (error) {
       res.status(500).json({ error: error.message });
