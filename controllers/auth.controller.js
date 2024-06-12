@@ -1,7 +1,14 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/user.model');
-const asyncHandler = require('express-async-handler');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const User = require("../models/user.model");
+const asyncHandler = require("express-async-handler");
+const AppError = require("./../utils/appError");
+
+const signToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
+};
 
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user._id);
@@ -9,72 +16,64 @@ const createSendToken = (user, statusCode, res) => {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
     ),
-    httpOnly: true
+    httpOnly: true,
   };
-  
-  res.cookie('jwt', token, cookieOptions);
+
+  res.cookie("jwt", token, cookieOptions);
 
   // Remove password from output
   user.password = undefined;
 
   res.status(statusCode).json({
-    status: 'success',
-    token,
+    status: "success",
     data: {
-      user
-    }
+      user,
+    },
   });
 };
 
-const registerUser= asyncHandler(async (req, res,next) => {
-    try {
-           
-      const user = await User.create({
-        name: req.body.name,
-        mobileNo: req.body.mobileNo,
-        email: req.body.email,
-        password: hashedPassword
-      });
+const registerUser = asyncHandler(async (req, res, next) => {
+  const newUser = await User.create({
+    name: req.body.name,
+    mobileNo: req.body.mobileNo,
+    email: req.body.email,
+    password: req.body.password,
+  });
+  createSendToken(newUser, 201, res);
+});
 
-      createSendToken(newUser, 201, res);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  })
-
- const loginUser= async (req, res) => {
-    try {
-      const user = await User.findOne({ email: req.body.email });
-      if (!user) {
-        return res.status(401).json({ message: 'Authentication failed' });
-      }
-      
-      const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
-      if (!isPasswordValid) {
-        return res.status(401).json({ message: 'Authentication failed' });
-      }
-
-      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-      res.status(200).json({ token: token });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  // 1) Check if email and password exist
+  if (!email || !password) {
+    return next(new AppError("Please provide email and password!", 400));
   }
 
+  // 2) Check if user exists && password is correct
+  const user = await User.findOne({ email: req.body.email }).select(
+    "+password"
+  );
+  if (!user || !(await user.correctPassword(password, user.password))) {
+    return next(new AppError("Incorrect email or password", 401));
+  }
+
+  // 3) If everything ok, send token to client
+  createSendToken(user, 200, res);
+});
 
 const protectRoute = asyncHandler(async (req, res, next) => {
   // 1) Getting token and check of it's there
   let token;
   if (
     req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
+    req.headers.authorization.startsWith("Bearer")
   ) {
-    token = req.headers.authorization.split(' ')[1];
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
     return next(
-      new AppError('You are not logged in! Please log in to get access.', 401)
+      new AppError("You are not logged in! Please log in to get access.", 401)
     );
   }
 
@@ -86,7 +85,7 @@ const protectRoute = asyncHandler(async (req, res, next) => {
   if (!currentUser) {
     return next(
       new AppError(
-        'The user belonging to this token does no longer exist.',
+        "The user belonging to this token does no longer exist.",
         401
       )
     );
@@ -95,7 +94,7 @@ const protectRoute = asyncHandler(async (req, res, next) => {
   // 4) Check if user changed password after the token was issued
   if (currentUser.changedPasswordAfter(decoded.iat)) {
     return next(
-      new AppError('User recently changed password! Please log in again.', 401)
+      new AppError("User recently changed password! Please log in again.", 401)
     );
   }
 
@@ -104,9 +103,8 @@ const protectRoute = asyncHandler(async (req, res, next) => {
   next();
 });
 
-
-  module.exports = {
-    registerUser,
-    loginUser,
-    protectRoute
-  };
+module.exports = {
+  registerUser,
+  loginUser,
+  protectRoute,
+};
