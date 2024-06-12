@@ -50,7 +50,7 @@ const updatePost = async (req, res) => {
         });
       }
     }
-
+    console.log(updateData);
     await Post.findByIdAndUpdate(req.params.postId, updateData);
     res.status(200).json({ message: "Post updated successfully" });
   } catch (error) {
@@ -91,8 +91,8 @@ const likePost = async (req, res) => {
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
-    if (!post.likes.includes(req.body.userId)) {
-      post.likes.push(req.body.userId);
+    if (!post.likes.includes(req.user._id)) {
+      post.likes.push(req.user._id);
       await post.save();
     }
     res.status(200).json({ message: "Post liked successfully" });
@@ -108,7 +108,7 @@ const commentPost = async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
     post.comments.push({
-      userId: req.body.userId,
+      userId: req.user._id,
       text: req.body.text,
     });
     await post.save();
@@ -118,6 +118,41 @@ const commentPost = async (req, res) => {
   }
 };
 
+// const getPosts = async (req, res) => {
+//   try {
+//     const { hashtags, text } = req.query;
+
+//     let searchCriteria = {};
+
+//     if (hashtags) {
+//       const hashtagsArray = hashtags.split(",");
+//       console.log(hashtagsArray);
+//       if (Array.isArray(hashtagsArray) && hashtagsArray.length > 0) {
+//         searchCriteria.hashtags = { $all: hashtagsArray };
+//       }
+//     }
+
+//     if (text) {
+//       searchCriteria.text = new RegExp(text, "i"); // 'i' for case-insensitive
+//     }
+
+//     // Perform the search based on the criteria
+//     const posts = await Post.find(searchCriteria)
+//       .populate("userId", "username") // Populate the userId with the username field from User model
+//       .populate("likes", "username") // Populate the likes with the username field from User model
+//       .populate("comments.userId", "username"); // Populate the comments' userId with the username field from User model
+
+//     // Return the found posts
+//     res.status(200).json({ data: posts });
+//   } catch (error) {
+//     // Handle errors
+//     console.error(error);
+//     res
+//       .status(500)
+//       .json({ error: "An error occurred while searching for posts" });
+//   }
+// };
+
 const getPosts = async (req, res) => {
   try {
     const { hashtags, text } = req.query;
@@ -126,8 +161,7 @@ const getPosts = async (req, res) => {
 
     if (hashtags) {
       const hashtagsArray = hashtags.split(",");
-      console.log(hashtagsArray);
-      if (Array.isArray(hashtagsArray) && hashtagsArray.length > 0) {
+      if (hashtagsArray.length > 0) {
         searchCriteria.hashtags = { $all: hashtagsArray };
       }
     }
@@ -140,7 +174,20 @@ const getPosts = async (req, res) => {
     const posts = await Post.find(searchCriteria)
       .populate("userId", "username") // Populate the userId with the username field from User model
       .populate("likes", "username") // Populate the likes with the username field from User model
-      .populate("comments.userId", "username"); // Populate the comments' userId with the username field from User model
+      .populate({
+        path: "comments",
+        populate: {
+          path: "userId",
+          select: "username",
+        },
+      }) // Populate the comments' userId with the username field from User model
+      .populate({
+        path: "comments.replies",
+        populate: {
+          path: "userId",
+          select: "username",
+        },
+      }); // Populate the replies' userId with the username field from User model
 
     // Return the found posts
     res.status(200).json({ data: posts });

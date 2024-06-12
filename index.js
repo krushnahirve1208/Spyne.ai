@@ -19,9 +19,10 @@ const postRoutes = require("./routes/post.route");
 const commentRoutes = require("./routes/comment.route");
 
 // Use routes
-app.use("/api/v1/comments", commentRoutes);
+
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/posts", postRoutes);
+app.use("/api/v1/posts/:postId/comments", commentRoutes);
 
 // Server
 const PORT = process.env.PORT || 3000;

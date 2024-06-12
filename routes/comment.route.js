@@ -1,5 +1,5 @@
 const express = require("express");
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 const {
   likeComment,
   replyToComment,
@@ -7,6 +7,7 @@ const {
   deleteComment,
   createComment,
   updateComment,
+  getCommentById,
 } = require("../controllers/comment.controller");
 
 const { protectRoute } = require("../controllers/auth.controller");
@@ -27,6 +28,7 @@ router.patch("/:commentId", protectRoute, updateComment);
 router.delete("/:commentId", protectRoute, deleteComment);
 
 // Get comments for a post
-router.get("/:postId", protectRoute, getCommentsForPost);
+// router.get("/:postId", protectRoute, getCommentsForPost);
 
+router.get("/:commentId", protectRoute, getCommentById);
 module.exports = router;
