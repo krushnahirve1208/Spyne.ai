@@ -1,6 +1,6 @@
 const express = require("express");
-
 const router = express.Router();
+
 const {
   registerUser,
   loginUser,
@@ -10,6 +10,7 @@ const {
   resetPassword,
   updatePassword,
 } = require("../controllers/auth.controller");
+
 const {
   getUserById,
   deleteUser,
@@ -20,11 +21,9 @@ const {
 } = require("../controllers/user.controller");
 
 router.get("/", getUsers);
-
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/logout", protectRoute, logoutUser);
-
 router.post("/forgotPassword", forgotPassword);
 router.patch("/resetPassword/:token", resetPassword);
 router.patch("/updateMyPassword", protectRoute, updatePassword);
@@ -34,9 +33,7 @@ router
   .patch(protectRoute, updateUserProfile)
   .delete(protectRoute, deleteUser)
   .get(getUserById);
-
-router.route("/:id/follow").post(protectRoute, followUser);
-
-router.route("/:id/unfollow/").post(protectRoute, unfollowUser);
+router.route("/:userId/follow").post(protectRoute, followUser);
+router.route("/:userId/unfollow/").post(protectRoute, unfollowUser);
 
 module.exports = router;

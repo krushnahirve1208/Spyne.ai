@@ -58,84 +58,94 @@ const updateUserProfile = asyncHandler(async (req, res, next) => {
   });
 });
 
-const getUserById = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId);
+const getUserById = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.userId);
 
-    if (!user) {
-      return res.status(404).json({
-        status: "fail",
-        message: "User not found",
-      });
-    }
-
-    res.status(200).json({
-      status: "success",
-      data: {
-        user,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
+  if (!user) {
+    return res.status(404).json({
       status: "fail",
-      message: error.message,
+      message: "User not found",
     });
   }
-};
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user,
+    },
+  });
+});
 
 const deleteUser = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(req.params.userId);
-  res.status(200).json({ message: "User deleted successfully" });
+  res
+    .status(204)
+    .json({ status: "success", message: "User deleted successfully" });
 });
 
 const followUser = asyncHandler(async (req, res) => {
-  const userToFollow = await User.findById(req.params.id);
-  const currentUser = await User.findById(req.user.id);
+  const userToFollow = await User.findById(req.params.userId);
+  const currentUser = await User.findById(req.user._id);
 
-  if (req.params.id === req.user.id) {
-    return res.status(400).json({ message: "You cannot follow yourself" });
-  }
-
+  // Ensure the target user exists
   if (!userToFollow) {
-    return res.status(404).json({ message: "User not found" });
+    return res.status(404).json({ status: "fail", message: "User not found" });
   }
 
+  // Check if the user is trying to follow themselves
+  if (req.params.userId === req.user._id) {
+    return res
+      .status(400)
+      .json({ status: "fail", message: "You cannot follow yourself" });
+  }
+
+  // Check if the current user is already following the target user
   if (currentUser.following.includes(userToFollow._id)) {
     return res
       .status(400)
-      .json({ message: "You are already following this user" });
+      .json({ status: "fail", message: "You are already following this user" });
   }
 
+  // Update the following array of the current user and the followers array of the target user
   currentUser.following.push(userToFollow._id);
   userToFollow.followers.push(currentUser._id);
 
-  // Update the documents without running validators
-  await User.updateOne({ _id: currentUser._id }, currentUser);
-  await User.updateOne({ _id: userToFollow._id }, userToFollow);
+  // Save the updated documents
+  await Promise.all([currentUser.save(), userToFollow.save()]);
 
-  res.status(200).json({ message: "User followed successfully" });
+  res
+    .status(200)
+    .json({ status: "status", message: "User followed successfully" });
 });
 
 const unfollowUser = asyncHandler(async (req, res) => {
-  const userToUnfollow = await User.findById(req.params.id);
-  const currentUser = await User.findById(req.user.id);
+  const userToUnfollow = await User.findById(req.params.userId);
+  const currentUser = await User.findById(req.user._id);
 
+  // Ensure the target user exists
   if (!userToUnfollow) {
-    return res.status(404).json({ message: "User not found" });
+    return res.status(404).json({ status: "fail", message: "User not found" });
   }
 
+  // Check if the current user is not following the target user
   if (!currentUser.following.includes(userToUnfollow._id)) {
-    return res.status(400).json({ message: "You are not following this user" });
+    return res
+      .status(400)
+      .json({ status: "fail", message: "You are not following this user" });
   }
 
+  // Remove the target user from the following array of the current user
   currentUser.following.pull(userToUnfollow._id);
+
+  // Remove the current user from the followers array of the target user
   userToUnfollow.followers.pull(currentUser._id);
 
-  // Update the documents without running validators
-  await User.updateOne({ _id: currentUser._id }, currentUser);
-  await User.updateOne({ _id: userToUnfollow._id }, userToUnfollow);
+  // Save the updated documents
+  await Promise.all([currentUser.save(), userToUnfollow.save()]);
 
-  res.status(200).json({ message: "User unfollowed successfully" });
+  res
+    .status(200)
+    .json({ status: "success", message: "User unfollowed successfully" });
 });
 
 module.exports = {

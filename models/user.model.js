@@ -5,6 +5,15 @@ const crypto = require("crypto");
 const { PhoneNumberUtil, PhoneNumberFormat } = require("google-libphonenumber");
 const phoneUtil = PhoneNumberUtil.getInstance();
 
+function validateMobileNumber(value) {
+  try {
+    const number = phoneUtil.parse(value);
+    return phoneUtil.isValidNumber(number);
+  } catch (error) {
+    return false;
+  }
+}
+
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -16,14 +25,7 @@ const userSchema = new mongoose.Schema(
       required: [true, "Please tell us your mobile no."],
       unique: true,
       validate: {
-        validator: function (v) {
-          try {
-            const number = phoneUtil.parse(v);
-            return phoneUtil.isValidNumber(number);
-          } catch (error) {
-            return false;
-          }
-        },
+        validator: validateMobileNumber,
         message: (props) => `${props.value} is not a valid mobile number!`,
       },
     },
