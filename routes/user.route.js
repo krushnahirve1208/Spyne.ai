@@ -35,8 +35,8 @@ router
   .delete(protectRoute, deleteUser)
   .get(getUserById);
 
-router.route("/follow/:id").post(protectRoute, followUser);
+router.route("/:id/follow").post(protectRoute, followUser);
 
-router.route("/unfollow/:id").post(protectRoute, unfollowUser);
+router.route("/:id/unfollow/").post(protectRoute, unfollowUser);
 
 module.exports = router;

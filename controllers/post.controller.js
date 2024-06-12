@@ -153,66 +153,12 @@ const getPosts = async (req, res) => {
   }
 };
 
-const likeComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    if (!comment.likes.includes(req.body.userId)) {
-      comment.likes.push(req.body.userId);
-      await post.save();
-    }
-
-    res.status(200).json({ message: "Comment liked successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-const replyToComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    const newReply = {
-      userId: req.body.userId,
-      text: req.body.text,
-      createdAt: new Date(),
-    };
-
-    comment.replies.push(newReply);
-    await post.save();
-
-    res
-      .status(201)
-      .json({ message: "Replied to comment successfully", reply: newReply });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
 module.exports = {
   createPost,
   getPostById,
   getPosts,
   deletePost,
   updatePost,
-  likeComment,
   likePost,
   commentPost,
-  replyToComment,
 };

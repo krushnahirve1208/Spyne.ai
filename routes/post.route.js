@@ -10,10 +10,8 @@ const {
   getPosts,
   deletePost,
   updatePost,
-  likeComment,
   likePost,
   commentPost,
-  replyToComment,
 } = require("../controllers/post.controller.js");
 router.use(protectRoute);
 

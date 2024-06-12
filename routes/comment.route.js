@@ -1,28 +1,32 @@
 const express = require("express");
 const router = express.Router();
-const commentController = require("../controllers/comment.controller");
+const {
+  likeComment,
+  replyToComment,
+  getCommentsForPost,
+  deleteComment,
+  createComment,
+  updateComment,
+} = require("../controllers/comment.controller");
+
 const { protectRoute } = require("../controllers/auth.controller");
 
 // Create a new comment
-router.post("/", protectRoute, commentController.createComment);
+router.post("/", protectRoute, createComment);
 
 // Reply to a comment
-router.post(
-  "/:commentId/reply",
-  protectRoute,
-  commentController.replyToComment
-);
+router.post("/:commentId/reply", protectRoute, replyToComment);
 
 // Like a comment
-router.post("/:commentId/like", protectRoute, commentController.likeComment);
+router.post("/:commentId/like", protectRoute, likeComment);
 
 // Update a comment
-router.patch("/:commentId", protectRoute, commentController.updateComment);
+router.patch("/:commentId", protectRoute, updateComment);
 
 // Delete a comment
-router.delete("/:commentId", protectRoute, commentController.deleteComment);
+router.delete("/:commentId", protectRoute, deleteComment);
 
 // Get comments for a post
-router.get("/:postId", protectRoute, commentController.getCommentsForPost);
+router.get("/:postId", protectRoute, getCommentsForPost);
 
 module.exports = router;
