@@ -3,12 +3,11 @@ const Post = require("../models/post.model");
 const asyncHandler = require("express-async-handler");
 const AppError = require("../utils/appError");
 
-const likeComment = asyncHandler(async (req, res) => {
+const likeComment = asyncHandler(async (req, res, next) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
   const post = await Post.findById(postId).populate("comments");
-  console.log(post);
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
@@ -31,41 +30,34 @@ const likeComment = asyncHandler(async (req, res) => {
   });
 });
 
-const unlikeComment = async (req, res, next) => {
-  try {
-    const postId = req.params.postId;
-    const commentId = req.params.commentId;
+const unlikeComment = asyncHandler(async (req, res, next) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
 
-    const post = await Post.findById(postId).populate("comments");
-
-    if (!post) {
-      return next(new AppError("Post not found", 404));
-    }
-
-    const comment = post.comments.find(
-      (comment) => comment._id.toString() === commentId
-    );
-
-    if (!comment) {
-      return next(new AppError("Comment not found", 404));
-    }
-    // Check if the user has liked the comment
-    if (comment.likes.includes(req.user._id)) {
-      comment.likes.pull(req.user._id);
-      await comment.save();
-    }
-
-    res.status(200).json({
-      status: "success",
-      data: { message: "Comment unliked successfully" },
-    });
-  } catch (error) {
-    console.error("Error unliking comment:", error);
-    next(new AppError("Failed to unlike comment", 500));
+  const post = await Post.findById(postId).populate("comments");
+  if (!post) {
+    return next(new AppError("Post not found", 404));
   }
-};
 
-const replyToComment = asyncHandler(async (req, res) => {
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
+  }
+
+  if (comment.likes.includes(req.user._id)) {
+    comment.likes.pull(req.user._id);
+    await comment.save();
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: { message: "Comment unliked successfully" },
+  });
+});
+
+const replyToComment = asyncHandler(async (req, res, next) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
@@ -101,7 +93,7 @@ const replyToComment = asyncHandler(async (req, res) => {
   });
 });
 
-const createComment = asyncHandler(async (req, res) => {
+const createComment = asyncHandler(async (req, res, next) => {
   const postId = req.params.postId;
 
   const post = await Post.findById(postId);
@@ -125,7 +117,7 @@ const createComment = asyncHandler(async (req, res) => {
   });
 });
 
-const updateComment = asyncHandler(async (req, res) => {
+const updateComment = asyncHandler(async (req, res, next) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
@@ -137,7 +129,6 @@ const updateComment = asyncHandler(async (req, res) => {
   const comment = post.comments.find(
     (comment) => comment._id.toString() === commentId
   );
-
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
@@ -154,26 +145,20 @@ const updateComment = asyncHandler(async (req, res) => {
 const deleteComment = asyncHandler(async (req, res, next) => {
   const { postId, commentId } = req.params;
 
-  // Find the post by its ID
   const post = await Post.findById(postId);
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  // Find the comment within the post's comments array
   const comment = post.comments.find(
     (comment) => comment._id.toString() === commentId
   );
-
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
 
-  // Remove the comment from the post's comments array
   post.comments.pull(commentId);
   await post.save();
-
-  // Also remove the comment from the Comment collection
   await Comment.findByIdAndDelete(commentId);
 
   res.status(200).json({
@@ -193,17 +178,14 @@ const getCommentsForPost = asyncHandler(async (req, res) => {
 const getCommentById = asyncHandler(async (req, res, next) => {
   const { postId, commentId } = req.params;
 
-  // Check if the post exists
   const post = await Post.findById(postId).populate("comments");
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  // Find the comment directly in the Comment collection
   const comment = post.comments.find(
     (comment) => comment._id.toString() === commentId
   );
-
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
