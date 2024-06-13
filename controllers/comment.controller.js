@@ -61,12 +61,14 @@ const replyToComment = asyncHandler(async (req, res, next) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
-  const post = await Post.findById(postId);
+  const post = await Post.findById(postId).populate("comments");
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  const comment = post.comments.id(commentId);
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
@@ -85,7 +87,7 @@ const replyToComment = asyncHandler(async (req, res, next) => {
   });
 
   comment.replies.push(newReply._id);
-  await post.save();
+  await comment.save();
 
   res.status(201).json({
     status: "success",
