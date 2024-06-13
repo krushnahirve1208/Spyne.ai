@@ -12,14 +12,15 @@ const {
   likePost,
   unlikePost,
 } = require("../controllers/post.controller.js");
+
+router.get("/", getPosts);
+router.get("/:postId", getPostById);
+
 router.use(protectRoute);
 
-router.post("/", upload.single("image"), createPost);
-router.get("/", getPosts);
-
-router.get("/:postId", getPostById);
 router.patch("/:postId", upload.single("image"), updatePost);
 router.delete("/:postId", deletePost);
 router.post("/:postId/like", likePost);
-router.route("/:postId/unlike").delete(protectRoute, unlikePost);
+router.post("/", upload.single("image"), createPost);
+router.route("/:postId/unlike", unlikePost);
 module.exports = router;

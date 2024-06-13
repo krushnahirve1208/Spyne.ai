@@ -117,7 +117,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       status: "success",
-      message: "Token sent to email!",
+      message: "Token sent to email" + " " + message,
     });
   } catch (err) {
     user.passwordResetToken = undefined;
