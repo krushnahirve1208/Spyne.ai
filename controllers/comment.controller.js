@@ -7,19 +7,22 @@ const likeComment = asyncHandler(async (req, res) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
-  const post = await Post.findById(postId);
+  const post = await Post.findById(postId).populate("comments");
+  console.log(post);
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  const comment = post.comments.id(commentId);
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
 
   if (!comment.likes.includes(req.user._id)) {
     comment.likes.push(req.user._id);
-    await post.save();
+    await comment.save();
   }
 
   res.status(200).json({
@@ -33,22 +36,23 @@ const unlikeComment = async (req, res, next) => {
     const postId = req.params.postId;
     const commentId = req.params.commentId;
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("comments");
+
     if (!post) {
       return next(new AppError("Post not found", 404));
     }
 
-    const comment = post.comments.id(commentId);
+    const comment = post.comments.find(
+      (comment) => comment._id.toString() === commentId
+    );
+
     if (!comment) {
       return next(new AppError("Comment not found", 404));
     }
-
     // Check if the user has liked the comment
     if (comment.likes.includes(req.user._id)) {
-      comment.likes = comment.likes.filter(
-        (like) => like.toString() !== req.user._id.toString()
-      );
-      await post.save();
+      comment.likes.pull(req.user._id);
+      await comment.save();
     }
 
     res.status(200).json({
@@ -125,18 +129,21 @@ const updateComment = asyncHandler(async (req, res) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
 
-  const post = await Post.findById(postId);
+  const post = await Post.findById(postId).populate("comments");
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  const comment = post.comments.id(commentId);
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
+
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
 
   comment.text = req.body.text || comment.text;
-  await post.save();
+  await comment.save();
 
   res.status(200).json({
     status: "success",
@@ -144,22 +151,30 @@ const updateComment = asyncHandler(async (req, res) => {
   });
 });
 
-const deleteComment = asyncHandler(async (req, res) => {
-  const postId = req.params.postId;
-  const commentId = req.params.commentId;
+const deleteComment = asyncHandler(async (req, res, next) => {
+  const { postId, commentId } = req.params;
 
+  // Find the post by its ID
   const post = await Post.findById(postId);
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  const comment = post.comments.id(commentId);
+  // Find the comment within the post's comments array
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
+
   if (!comment) {
     return next(new AppError("Comment not found", 404));
   }
 
-  post.comments.remove(commentId);
+  // Remove the comment from the post's comments array
+  post.comments.pull(commentId);
   await post.save();
+
+  // Also remove the comment from the Comment collection
+  await Comment.findByIdAndDelete(commentId);
 
   res.status(200).json({
     status: "success",
@@ -179,22 +194,18 @@ const getCommentById = asyncHandler(async (req, res, next) => {
   const { postId, commentId } = req.params;
 
   // Check if the post exists
-  const post = await Post.findById(postId);
+  const post = await Post.findById(postId).populate("comments");
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
   // Find the comment directly in the Comment collection
-  const comment = await Comment.findById(commentId).populate("userId");
+  const comment = post.comments.find(
+    (comment) => comment._id.toString() === commentId
+  );
+
   if (!comment) {
     return next(new AppError("Comment not found", 404));
-  }
-
-  // Check if the comment belongs to the post
-  if (comment.postId.toString() !== postId) {
-    return next(
-      new AppError("Comment does not belong to the specified post", 400)
-    );
   }
 
   res.status(200).json({ status: "success", data: { comment } });

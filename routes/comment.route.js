@@ -18,9 +18,7 @@ router.post("/", protectRoute, createComment);
 router.post("/:commentId/reply", protectRoute, replyToComment);
 
 router.post("/:commentId/like", protectRoute, likeComment);
-router
-  .route("/:postId/comments/:commentId/unlike")
-  .delete(protectRoute, unlikeComment);
+router.route("/:commentId/unlike").post(protectRoute, unlikeComment);
 
 router.patch("/:commentId", protectRoute, updateComment);
 
