@@ -1,6 +1,6 @@
 const express = require("express");
 const cookieParser = require("cookie-parser");
-
+const errorHandler = require("./controllers/error.controller");
 const app = express();
 
 // Middleware
@@ -18,4 +18,5 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/posts", postRoutes);
 app.use("/api/v1/posts/:postId/comments", commentRoutes);
 
+app.use(errorHandler);
 module.exports = app;

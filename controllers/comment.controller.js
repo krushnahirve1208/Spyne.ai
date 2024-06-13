@@ -1,192 +1,163 @@
 const Comment = require("../models/comment.model");
 const Post = require("../models/post.model");
+const asyncHandler = require("express-async-handler");
+const AppError = require("../utils/appError");
 
-const likeComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+const likeComment = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
 
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    if (!comment.likes.includes(req.user._id)) {
-      comment.likes.push(req.user._id);
-      await post.save();
-    }
-
-    res.status(200).json({ message: "Comment liked successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
   }
-};
 
-const replyToComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
+  }
 
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    const { text } = req.body;
-    const userId = req.user._id;
-    if (!text) {
-      return res.status(400).json({ message: "Text is required for reply" });
-    }
-
-    // Create a new comment document for the reply
-    const newReply = await Comment.create({
-      postId: req.params.postId,
-      userId,
-      text,
-      createdAt: new Date(),
-    });
-
-    // Check if the reply text is empty
-    if (!newReply.text) {
-      throw new Error("Reply text is missing!"); // Or send a specific error response
-    }
-
-    // Push the new reply's ID into the replies array of the parent comment
-    comment.replies.push(newReply._id);
-
-    // Save the parent post to persist the changes
+  if (!comment.likes.includes(req.user._id)) {
+    comment.likes.push(req.user._id);
     await post.save();
-
-    res
-      .status(201)
-      .json({ message: "Replied to comment successfully", reply: newReply });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-};
 
-// Create a new comment
-const createComment = async (req, res) => {
-  try {
-    console.log(req.body);
-    console.log(req.params.postId);
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+  res.status(200).json({
+    status: "success",
+    data: { message: "Comment liked successfully" },
+  });
+});
 
-    const newComment = new Comment({
-      postId: req.params.postId,
-      userId: req.user._id,
-      text: req.body.text,
-    });
+const replyToComment = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
 
-    await newComment.save();
-
-    post.comments.push(newComment);
-    await post.save();
-
-    res
-      .status(201)
-      .json({ message: "Comment created successfully", comment: newComment });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
   }
-};
 
-// Update a comment
-const updateComment = async (req, res) => {
-  try {
-    const { postId, commentId } = req.params;
-
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    const comment = post.comments.id(commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    comment.text = req.body.text || comment.text;
-
-    await post.save();
-
-    res.status(200).json({ message: "Comment updated successfully", comment });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
   }
-};
 
-// Delete a comment
-const deleteComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
-
-    // Remove the comment from the post
-    post.comments.remove(req.params.commentId);
-    await post.save();
-
-    res.status(200).json({ message: "Comment deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  const { text } = req.body;
+  const userId = req.user._id;
+  if (!text) {
+    return next(new AppError("Text is required for reply", 400));
   }
-};
 
-// Get comments for a post
-const getCommentsForPost = async (req, res) => {
-  try {
-    const comments = await Comment.find({ postId: req.params.postId }).populate(
-      "userId",
-      "name"
-    );
+  const newReply = await Comment.create({
+    postId,
+    userId,
+    text,
+    createdAt: new Date(),
+  });
 
-    res.status(200).json({ status: "success", data: comments });
-  } catch (error) {
-    res.status(500).json({ status: "error", message: error.message });
+  comment.replies.push(newReply._id);
+  await post.save();
+
+  res.status(201).json({
+    status: "success",
+    data: { message: "Replied to comment successfully", reply: newReply },
+  });
+});
+
+const createComment = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
   }
-};
 
-const getCommentById = async (req, res) => {
-  try {
-    const postId = req.params.postId;
-    const commentId = req.params.commentId;
+  const newComment = new Comment({
+    postId,
+    userId: req.user._id,
+    text: req.body.text,
+  });
 
-    // Find the post by postId
-    const post = await Post.findById(postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
+  await newComment.save();
+  post.comments.push(newComment);
+  await post.save();
 
-    // Find the comment by commentId within the post
-    const comment = post.comments.id(commentId);
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
-    }
+  res.status(201).json({
+    status: "success",
+    data: { message: "Comment created successfully", comment: newComment },
+  });
+});
 
-    // Return the comment
-    res.status(200).json({ data: comment });
-  } catch (error) {
-    // Handle errors
-    console.error(error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while fetching the comment" });
+const updateComment = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
   }
-};
+
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
+  }
+
+  comment.text = req.body.text || comment.text;
+  await post.save();
+
+  res.status(200).json({
+    status: "success",
+    data: { message: "Comment updated successfully", comment },
+  });
+});
+
+const deleteComment = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
+  }
+
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
+  }
+
+  post.comments.remove(commentId);
+  await post.save();
+
+  res.status(200).json({
+    status: "success",
+    data: { message: "Comment deleted successfully" },
+  });
+});
+
+const getCommentsForPost = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+
+  const comments = await Comment.find({ postId }).populate("userId", "name");
+
+  res.status(200).json({ status: "success", data: comments });
+});
+
+const getCommentById = asyncHandler(async (req, res) => {
+  const postId = req.params.postId;
+  const commentId = req.params.commentId;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("Post not found", 404));
+  }
+
+  const comment = post.comments.id(commentId);
+  if (!comment) {
+    return next(new AppError("Comment not found", 404));
+  }
+
+  res.status(200).json({ status: "success", data: { comment } });
+});
 
 module.exports = {
   likeComment,
