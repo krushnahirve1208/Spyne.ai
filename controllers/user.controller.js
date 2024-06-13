@@ -13,13 +13,14 @@ const filterObj = (obj, ...allowedFields) => {
   return newObj;
 };
 
-const getUsers = asyncHandler(async (req, res) => {
+const getUsers = asyncHandler(async (req, res, next) => {
   const features = new APIFeatures(User.find(), req.query)
     .filter()
     .sort()
     .limitFields()
     .paginate();
   const users = await features.query;
+
   res.status(200).json({
     status: "success",
     results: users.length,
@@ -29,43 +30,20 @@ const getUsers = asyncHandler(async (req, res) => {
   });
 });
 
-const updateUserProfile = asyncHandler(async (req, res, next) => {
+const getUserById = asyncHandler(async (req, res, next) => {
   const userId = req.params.userId;
-  // 1) Create error if user POSTs password data
-  if (req.body.password || req.body.passwordConfirm) {
+
+  // Ensure the user trying to view the profile is the same as the user being viewed
+  if (req.user._id.toString() !== userId) {
     return next(
-      new AppError(
-        "This route is not for password updates. Please use /updateMyPassword.",
-        400
-      )
+      new AppError("You do not have permission to view this profile", 403)
     );
   }
 
-  // 2) Filtered out unwanted fields names that are not allowed to be updated
-  const filteredBody = filterObj(req.body, "username", "email", "mobileNo");
-
-  // 3) Update user document
-  const updatedUser = await User.findByIdAndUpdate(userId, filteredBody, {
-    new: true,
-    runValidators: true,
-  });
-
-  res.status(200).json({
-    status: "success",
-    data: {
-      user: updatedUser,
-    },
-  });
-});
-
-const getUserById = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.userId);
+  const user = await User.findById(userId);
 
   if (!user) {
-    return res.status(404).json({
-      status: "fail",
-      message: "User not found",
-    });
+    return next(new AppError("User not found", 404));
   }
 
   res.status(200).json({
@@ -76,76 +54,118 @@ const getUserById = asyncHandler(async (req, res) => {
   });
 });
 
-const deleteUser = asyncHandler(async (req, res) => {
-  await User.findByIdAndDelete(req.params.userId);
-  res
-    .status(204)
-    .json({ status: "success", message: "User deleted successfully" });
+const updateUserProfile = asyncHandler(async (req, res, next) => {
+  const userId = req.params.userId;
+
+  // Ensure the user trying to update the profile is the same as the user being updated
+  if (req.user._id.toString() !== userId) {
+    return next(
+      new AppError("You do not have permission to update this profile", 403)
+    );
+  }
+
+  if (req.body.password || req.body.passwordConfirm) {
+    return next(
+      new AppError(
+        "This route is not for password updates. Please use /updateMyPassword.",
+        400
+      )
+    );
+  }
+
+  const filteredBody = filterObj(req.body, "username", "email", "mobileNo");
+  const updatedUser = await User.findByIdAndUpdate(userId, filteredBody, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedUser) {
+    return next(new AppError("User not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: updatedUser,
+    },
+  });
 });
 
-const followUser = asyncHandler(async (req, res) => {
-  const userToFollow = await User.findById(req.params.userId);
-  const currentUser = await User.findById(req.user._id);
+const deleteUser = asyncHandler(async (req, res, next) => {
+  if (req.user._id.toString() !== req.params.userId) {
+    return next(
+      new AppError("You do not have permission to delete this account", 403)
+    );
+  }
 
-  // Ensure the target user exists
+  const user = await User.findByIdAndDelete(req.params.userId);
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
+  }
+
+  res.status(204).json({
+    status: "success",
+    message: "User deleted successfully",
+  });
+});
+
+const followUser = asyncHandler(async (req, res, next) => {
+  const userIdToFollow = req.params.userId;
+  const currentUserId = req.user._id;
+
+  const userToFollow = await User.findById(userIdToFollow);
   if (!userToFollow) {
-    return res.status(404).json({ status: "fail", message: "User not found" });
+    return next(new AppError("User not found", 404));
   }
 
-  // Check if the user is trying to follow themselves
-  if (req.params.userId === req.user._id) {
-    return res
-      .status(400)
-      .json({ status: "fail", message: "You cannot follow yourself" });
+  if (userIdToFollow === String(currentUserId)) {
+    return next(new AppError("You cannot follow yourself", 400));
   }
 
-  // Check if the current user is already following the target user
-  if (currentUser.following.includes(userToFollow._id)) {
-    return res
-      .status(400)
-      .json({ status: "fail", message: "You are already following this user" });
+  const currentUser = await User.findById(currentUserId);
+  if (currentUser.following.includes(userIdToFollow)) {
+    return next(new AppError("You are already following this user", 400));
   }
 
-  // Update the following array of the current user and the followers array of the target user
-  currentUser.following.push(userToFollow._id);
-  userToFollow.followers.push(currentUser._id);
+  await User.findByIdAndUpdate(currentUserId, {
+    $addToSet: { following: userIdToFollow },
+  });
+  await User.findByIdAndUpdate(userIdToFollow, {
+    $addToSet: { followers: currentUserId },
+  });
 
-  // Save the updated documents
-  await Promise.all([currentUser.save(), userToFollow.save()]);
-
-  res
-    .status(200)
-    .json({ status: "status", message: "User followed successfully" });
+  res.status(200).json({
+    status: "success",
+    message: "User followed successfully",
+  });
 });
 
-const unfollowUser = asyncHandler(async (req, res) => {
-  const userToUnfollow = await User.findById(req.params.userId);
-  const currentUser = await User.findById(req.user._id);
+const unfollowUser = asyncHandler(async (req, res, next) => {
+  const userIdToUnfollow = req.params.userId;
+  const currentUserId = req.user._id;
 
-  // Ensure the target user exists
+  const userToUnfollow = await User.findById(userIdToUnfollow);
   if (!userToUnfollow) {
-    return res.status(404).json({ status: "fail", message: "User not found" });
+    return next(new AppError("User not found", 404));
   }
 
-  // Check if the current user is not following the target user
-  if (!currentUser.following.includes(userToUnfollow._id)) {
-    return res
-      .status(400)
-      .json({ status: "fail", message: "You are not following this user" });
+  const currentUser = await User.findById(currentUserId);
+  if (!currentUser.following.includes(userIdToUnfollow)) {
+    return next(new AppError("You are not following this user", 400));
   }
 
-  // Remove the target user from the following array of the current user
-  currentUser.following.pull(userToUnfollow._id);
+  await User.findByIdAndUpdate(currentUserId, {
+    $pull: { following: userIdToUnfollow },
+  });
+  await User.findByIdAndUpdate(userIdToUnfollow, {
+    $pull: { followers: currentUserId },
+  });
 
-  // Remove the current user from the followers array of the target user
-  userToUnfollow.followers.pull(currentUser._id);
-
-  // Save the updated documents
-  await Promise.all([currentUser.save(), userToUnfollow.save()]);
-
-  res
-    .status(200)
-    .json({ status: "success", message: "User unfollowed successfully" });
+  res.status(200).json({
+    status: "success",
+    message: "User unfollowed successfully",
+  });
 });
 
 module.exports = {
