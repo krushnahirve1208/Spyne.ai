@@ -33,13 +33,6 @@ const getUsers = asyncHandler(async (req, res, next) => {
 const getUserById = asyncHandler(async (req, res, next) => {
   const userId = req.params.userId;
 
-  // Ensure the user trying to view the profile is the same as the user being viewed
-  if (req.user._id.toString() !== userId) {
-    return next(
-      new AppError("You do not have permission to view this profile", 403)
-    );
-  }
-
   const user = await User.findById(userId);
 
   if (!user) {
@@ -52,6 +45,7 @@ const getUserById = asyncHandler(async (req, res, next) => {
       user,
     },
   });
+  next();
 });
 
 const updateUserProfile = asyncHandler(async (req, res, next) => {

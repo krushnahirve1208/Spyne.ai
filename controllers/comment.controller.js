@@ -28,6 +28,39 @@ const likeComment = asyncHandler(async (req, res) => {
   });
 });
 
+const unlikeComment = async (req, res, next) => {
+  try {
+    const postId = req.params.postId;
+    const commentId = req.params.commentId;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return next(new AppError("Post not found", 404));
+    }
+
+    const comment = post.comments.id(commentId);
+    if (!comment) {
+      return next(new AppError("Comment not found", 404));
+    }
+
+    // Check if the user has liked the comment
+    if (comment.likes.includes(req.user._id)) {
+      comment.likes = comment.likes.filter(
+        (like) => like.toString() !== req.user._id.toString()
+      );
+      await post.save();
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: { message: "Comment unliked successfully" },
+    });
+  } catch (error) {
+    console.error("Error unliking comment:", error);
+    next(new AppError("Failed to unlike comment", 500));
+  }
+};
+
 const replyToComment = asyncHandler(async (req, res) => {
   const postId = req.params.postId;
   const commentId = req.params.commentId;
@@ -142,18 +175,26 @@ const getCommentsForPost = asyncHandler(async (req, res) => {
   res.status(200).json({ status: "success", data: comments });
 });
 
-const getCommentById = asyncHandler(async (req, res) => {
-  const postId = req.params.postId;
-  const commentId = req.params.commentId;
+const getCommentById = asyncHandler(async (req, res, next) => {
+  const { postId, commentId } = req.params;
 
+  // Check if the post exists
   const post = await Post.findById(postId);
   if (!post) {
     return next(new AppError("Post not found", 404));
   }
 
-  const comment = post.comments.id(commentId);
+  // Find the comment directly in the Comment collection
+  const comment = await Comment.findById(commentId).populate("userId");
   if (!comment) {
     return next(new AppError("Comment not found", 404));
+  }
+
+  // Check if the comment belongs to the post
+  if (comment.postId.toString() !== postId) {
+    return next(
+      new AppError("Comment does not belong to the specified post", 400)
+    );
   }
 
   res.status(200).json({ status: "success", data: { comment } });
@@ -167,4 +208,5 @@ module.exports = {
   createComment,
   updateComment,
   getCommentById,
+  unlikeComment,
 };

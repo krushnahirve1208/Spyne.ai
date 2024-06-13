@@ -111,21 +111,6 @@ const likePost = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data: { post } });
 });
 
-const commentPost = asyncHandler(async (req, res, next) => {
-  const post = await Post.findById(req.params.postId);
-  if (!post) {
-    return next(new AppError("Post not found", 404));
-  }
-
-  post.comments.push({
-    userId: req.user._id,
-    text: req.body.text,
-  });
-
-  await post.save();
-  res.status(200).json({ status: "success", data: { post } });
-});
-
 const getPosts = asyncHandler(async (req, res, next) => {
   const { hashtags, text } = req.query;
   let searchCriteria = {};
@@ -162,6 +147,28 @@ const getPosts = asyncHandler(async (req, res, next) => {
   res.status(200).json({ status: "success", data: { posts } });
 });
 
+const unlikePost = async (req, res, next) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return next(new AppError("Post not found", 404));
+    }
+
+    // Check if the user has liked the post
+    if (post.likes.includes(req.user._id)) {
+      post.likes = post.likes.filter(
+        (like) => like.toString() !== req.user._id.toString()
+      );
+      await post.save();
+    }
+
+    res.status(200).json({ status: "success", data: { post } });
+  } catch (error) {
+    console.error("Error unliking post:", error);
+    next(new AppError("Failed to unlike post", 500));
+  }
+};
+
 module.exports = {
   createPost,
   getPostById,
@@ -169,5 +176,5 @@ module.exports = {
   deletePost,
   updatePost,
   likePost,
-  commentPost,
+  unlikePost,
 };

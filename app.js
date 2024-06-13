@@ -18,5 +18,5 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/posts", postRoutes);
 app.use("/api/v1/posts/:postId/comments", commentRoutes);
 
-app.use(errorHandler);
+// app.use(errorHandler);
 module.exports = app;
