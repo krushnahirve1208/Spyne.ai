@@ -22,5 +22,5 @@ router.patch("/:postId", upload.single("image"), updatePost);
 router.delete("/:postId", deletePost);
 router.post("/:postId/like", likePost);
 router.post("/", upload.single("image"), createPost);
-router.route("/:postId/unlike", unlikePost);
+router.post("/:postId/unlike", unlikePost);
 module.exports = router;
